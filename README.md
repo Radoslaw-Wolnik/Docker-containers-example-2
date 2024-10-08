@@ -1,2 +1,1 @@
-# Docker-containers-example-2
-this time with next js
+# Docker containers - minimal next js app
