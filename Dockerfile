@@ -7,14 +7,22 @@ WORKDIR /app
 # Copy package.json and package-lock.json
 COPY package*.json ./
 
+# Copy prisma directory (including schema.prisma)
+COPY prisma ./prisma
+
 # Install dependencies
 RUN npm ci
 
-# Copy the current directory contents into the container
-COPY . .
-
 # Generate Prisma client
 RUN npx prisma generate
+
+# Copy the rest of the application code
+COPY . .
+
+# Copy only the necessary directories and files
+# COPY src ./src
+# COPY middleware ./middleware
+
 
 # Build the Next.js app
 RUN npm run build
@@ -25,10 +33,11 @@ EXPOSE 3000
 # Create a directory for logs
 RUN mkdir -p /app/logs
 
-# Create uploads directory
-RUN mkdir -p public/uploads
+# Create directories for logs and uploads
+RUN mkdir -p /app/logs \
+    && mkdir -p /app/public/uploads/users
 
-# Set permissions for the logs directory
-RUN chmod 777 /app/logs
+# Set permissions for the logs and uploads directories
+RUN chmod -R 755 /app/logs /app/public/uploads
 
 CMD ["npm", "start"]
