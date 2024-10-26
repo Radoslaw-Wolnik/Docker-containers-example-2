@@ -1,13 +1,15 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Annotation, AnnotationCreateInput } from '@/types/global';
 import { useSession } from 'next-auth/react';
+import { Annotation, AnnotationType, SafeAnnotation } from '@/types/global';
+import { usePermissions } from '@/hooks/usePermissions';
+import { svgUtils } from '@/utils/svgUtils';
 import { Pencil, Eye, EyeOff, Trash2 } from 'lucide-react';
 
 interface ImageAnnotatorProps {
   imageUrl: string;
   imageId: number;
-  annotations: Annotation[];
-  onAnnotationCreate: (annotation: AnnotationCreateInput) => Promise<void>;
+  annotations: SafeAnnotation[];
+  onAnnotationCreate: (annotation: Partial<Annotation>) => Promise<void>;
   onAnnotationUpdate: (id: number, data: Partial<Annotation>) => Promise<void>;
   onAnnotationDelete: (id: number) => Promise<void>;
 }
@@ -21,13 +23,15 @@ export default function ImageAnnotator({
   onAnnotationDelete
 }: ImageAnnotatorProps) {
   const { data: session } = useSession();
-  const [selectedTool, setSelectedTool] = useState<'DOT' | 'ARROW' | null>(null);
+  const [selectedTool, setSelectedTool] = useState<AnnotationType | null>(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [startPoint, setStartPoint] = useState<{ x: number; y: number } | null>(null);
   const [showAnnotations, setShowAnnotations] = useState(true);
-  const [selectedAnnotation, setSelectedAnnotation] = useState<Annotation | null>(null);
+  const [selectedAnnotation, setSelectedAnnotation] = useState<SafeAnnotation | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
+
+  const { can } = usePermissions();
 
   const getRelativeCoordinates = (e: React.MouseEvent): { x: number; y: number } => {
     if (!containerRef.current) return { x: 0, y: 0 };
@@ -62,8 +66,7 @@ export default function ImageAnnotator({
 
   const handleMouseMove = (e: React.MouseEvent) => {
     if (!isDrawing || !startPoint) return;
-    const coords = getRelativeCoordinates(e);
-    // Update preview arrow here if needed
+    // Create preview arrow here if needed
   };
 
   const handleMouseUp = async (e: React.MouseEvent) => {
@@ -173,56 +176,59 @@ export default function ImageAnnotator({
       </div>
 
       {selectedAnnotation && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-          <div className="bg-white p-4 rounded-lg max-w-md w-full">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg max-w-md w-full">
             <h3 className="text-lg font-bold mb-4">Edit Annotation</h3>
             <input
               type="text"
               value={selectedAnnotation.label}
-              onChange={(e) =>
-                setSelectedAnnotation({ ...selectedAnnotation, label: e.target.value })
-              }
+              onChange={(e) => setSelectedAnnotation({
+                ...selectedAnnotation,
+                label: e.target.value
+              })}
               className="w-full p-2 border rounded mb-4"
             />
             <textarea
               value={selectedAnnotation.description || ''}
-              onChange={(e) =>
-                setSelectedAnnotation({
-                  ...selectedAnnotation,
-                  description: e.target.value,
-                })
-              }
+              onChange={(e) => setSelectedAnnotation({
+                ...selectedAnnotation,
+                description: e.target.value
+              })}
               className="w-full p-2 border rounded mb-4"
               placeholder="Description (optional)"
             />
-            <div className="flex justify-end gap-2">
+            <div className="flex justify-end space-x-2">
               <button
                 onClick={() => setSelectedAnnotation(null)}
-                className="px-4 py-2 bg-gray-200 rounded"
+                className="px-4 py-2 bg-gray-100 rounded hover:bg-gray-200"
               >
                 Cancel
               </button>
-              <button
-                onClick={() => {
-                  onAnnotationUpdate(selectedAnnotation.id, {
-                    label: selectedAnnotation.label,
-                    description: selectedAnnotation.description,
-                  });
-                  setSelectedAnnotation(null);
-                }}
-                className="px-4 py-2 bg-blue-500 text-white rounded"
-              >
-                Save
-              </button>
-              <button
-                onClick={() => {
-                  onAnnotationDelete(selectedAnnotation.id);
-                  setSelectedAnnotation(null);
-                }}
-                className="px-4 py-2 bg-red-500 text-white rounded"
-              >
-                Delete
-              </button>
+              {can('update:annotation', selectedAnnotation) && (
+                <button
+                  onClick={() => {
+                    onAnnotationUpdate(selectedAnnotation.id, {
+                      label: selectedAnnotation.label,
+                      description: selectedAnnotation.description,
+                    });
+                    setSelectedAnnotation(null);
+                  }}
+                  className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                >
+                  Save
+                </button>
+              )}
+              {can('delete:annotation', selectedAnnotation) && (
+                <button
+                  onClick={() => {
+                    onAnnotationDelete(selectedAnnotation.id);
+                    setSelectedAnnotation(null);
+                  }}
+                  className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+                >
+                  Delete
+                </button>
+              )}
             </div>
           </div>
         </div>

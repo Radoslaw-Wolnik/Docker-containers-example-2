@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { Image } from '@/types/global';
+import { ExtendedImage } from '@/types/global';
 import { Loader2, Save } from 'lucide-react';
 
 interface ImageMetadataEditorProps {
-  image: Image;
-  onUpdate: (updates: Partial<Image>) => Promise<void>;
+  image: ExtendedImage;
+  onUpdate: (updates: Partial<ExtendedImage>) => Promise<void>;
   isLoading?: boolean;
 }
 
@@ -72,6 +72,7 @@ export default function ImageMetadataEditor({
             onChange={(e) => setIsPublic(e.target.checked)}
             className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
           />
+          // Continuing from where we left off...
           <label htmlFor="isPublic" className="ml-2 block text-sm text-gray-900">
             Make this image public
           </label>
@@ -82,10 +83,30 @@ export default function ImageMetadataEditor({
           disabled={isLoading || editing}
           className="flex items-center justify-center w-full px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
         >
-          {(isLoading || editing) && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+          {(isLoading || editing) && (
+            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+          )}
           Save Changes
         </button>
       </form>
+
+      <div className="mt-4 pt-4 border-t border-gray-200">
+        <h4 className="text-sm font-medium text-gray-700">Image Stats</h4>
+        <div className="mt-2 grid grid-cols-2 gap-4">
+          <div>
+            <p className="text-sm text-gray-500">Annotations</p>
+            <p className="mt-1 text-lg font-medium text-gray-900">
+              {image._count?.annotations || 0}
+            </p>
+          </div>
+          <div>
+            <p className="text-sm text-gray-500">Uploaded by</p>
+            <p className="mt-1 text-lg font-medium text-gray-900">
+              {image.uploadedBy?.username}
+            </p>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

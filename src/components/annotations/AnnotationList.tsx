@@ -1,11 +1,12 @@
 import React from 'react';
-import { Annotation, SafeUser } from '@/types/global';
+import { SafeAnnotation, SafeUser } from '@/types/global';
 import { formatDate } from '@/utils/dateUtil';
 import { Edit2, Trash2, MapPin, ArrowRight } from 'lucide-react';
+import { usePermissions } from '@/hooks/usePermissions';
 
 interface AnnotationListProps {
-  annotations: Annotation[];
-  onUpdate: (id: number, updates: Partial<Annotation>) => Promise<void>;
+  annotations: SafeAnnotation[];
+  onUpdate: (id: number, updates: Partial<SafeAnnotation>) => Promise<void>;
   onDelete: (id: number) => Promise<void>;
   currentUser?: SafeUser | null;
 }
@@ -16,14 +17,7 @@ export default function AnnotationList({
   onDelete,
   currentUser
 }: AnnotationListProps) {
-  const canModify = (annotation: Annotation) => {
-    if (!currentUser) return false;
-    return currentUser.id === annotation.userId || currentUser.role === 'ADMIN';
-  };
-
-  const toggleVisibility = async (annotation: Annotation) => {
-    await onUpdate(annotation.id, { isHidden: !annotation.isHidden });
-  };
+  const { can } = usePermissions();
 
   return (
     <div className="bg-white rounded-lg shadow-sm p-6">
@@ -61,55 +55,33 @@ export default function AnnotationList({
                 </div>
               </div>
 
-              {canModify(annotation) && (
+              {can('update:annotation', annotation) && (
                 <div className="flex items-center space-x-2">
                   <button
-                    onClick={() => toggleVisibility(annotation)}
-                    className={`p-1 rounded-full ${
-                      annotation.isHidden
-                        ? 'text-gray-400 hover:text-gray-600'
-                        : 'text-blue-500 hover:text-blue-600'
-                    }`}
+                    onClick={() => onUpdate(annotation.id, {
+                      isHidden: !annotation.isHidden
+                    })}
+                    className="p-1 rounded hover:bg-gray-100"
                   >
                     <Edit2 className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => onDelete(annotation.id)}
-                    className="p-1 rounded-full text-red-500 hover:text-red-600"
+                    className="p-1 rounded hover:bg-gray-100 text-red-500"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
               )}
             </div>
-
-            <div className="mt-2 text-xs text-gray-500">
-              Position: {Math.round(annotation.x)}%, {Math.round(annotation.y)}%
-              {annotation.type === 'ARROW' && annotation.endX && annotation.endY && (
-                <> → {Math.round(annotation.endX)}%, {Math.round(annotation.endY)}%</>
-              )}
-            </div>
           </div>
         ))}
 
         {annotations.length === 0 && (
-          <p className="text-center text-gray-500 py-4">
-            No annotations yet. Click on the image to add annotations.
-          </p>
+          <div className="text-center text-gray-500 py-4">
+            No annotations yet
+          </div>
         )}
-      </div>
-
-      <div className="mt-4 border-t pt-4">
-        <div className="flex items-center gap-4 text-sm text-gray-500">
-          <div className="flex items-center">
-            <MapPin className="w-4 h-4 text-blue-500 mr-1" />
-            <span>Dot Annotation</span>
-          </div>
-          <div className="flex items-center">
-            <ArrowRight className="w-4 h-4 text-green-500 mr-1" />
-            <span>Arrow Annotation</span>
-          </div>
-        </div>
       </div>
     </div>
   );

@@ -1,16 +1,19 @@
 import React from 'react';
 import Link from 'next/link';
-import { Image, SafeUser } from '@/types/global';
+import { ExtendedImage, SafeUser } from '@/types/global';
 import { formatDate } from '@/utils/dateUtil';
 import { Edit, Trash2, Eye, Lock, Globe } from 'lucide-react';
+import { usePermissions } from '@/hooks/usePermissions';
 
 interface ImageGridProps {
-  images: Image[];
+  images: ExtendedImage[];
   currentUser?: SafeUser | null;
   onDelete?: (imageId: number) => Promise<void>;
 }
 
 export default function ImageGrid({ images, currentUser, onDelete }: ImageGridProps) {
+  const { can } = usePermissions();
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       {images.map((image) => (
@@ -51,21 +54,21 @@ export default function ImageGrid({ images, currentUser, onDelete }: ImageGridPr
                 >
                   <Eye className="w-5 h-5" />
                 </Link>
-                {currentUser && (currentUser.id === image.userId || currentUser.role === 'ADMIN') && (
-                  <>
-                    <Link
-                      href={`/images/${image.id}/edit`}
-                      className="p-2 text-green-500 hover:bg-green-50 rounded-full"
-                    >
-                      <Edit className="w-5 h-5" />
-                    </Link>
-                    <button
-                      onClick={() => onDelete?.(image.id)}
-                      className="p-2 text-red-500 hover:bg-red-50 rounded-full"
-                    >
-                      <Trash2 className="w-5 h-5" />
-                    </button>
-                  </>
+                {can('update:image', image) && (
+                  <Link
+                    href={`/images/${image.id}/edit`}
+                    className="p-2 text-green-500 hover:bg-green-50 rounded-full"
+                  >
+                    <Edit className="w-5 h-5" />
+                  </Link>
+                )}
+                {can('delete:image', image) && (
+                  <button
+                    onClick={() => onDelete?.(image.id)}
+                    className="p-2 text-red-500 hover:bg-red-50 rounded-full"
+                  >
+                    <Trash2 className="w-5 h-5" />
+                  </button>
                 )}
               </div>
             </div>
@@ -76,12 +79,24 @@ export default function ImageGrid({ images, currentUser, onDelete }: ImageGridPr
               </p>
             )}
 
-            <div className="mt-3 flex items-center text-sm text-gray-500">
-              <span>{image.annotations?.length || 0} annotations</span>
+            <div className="mt-3 flex items-center justify-between text-sm text-gray-500">
+              <span>{image._count?.annotations || 0} annotations</span>
+              {!image.isPublic && (
+                <span className="flex items-center">
+                  <Lock className="w-4 h-4 mr-1" />
+                  Private
+                </span>
+              )}
             </div>
           </div>
         </div>
       ))}
+
+      {images.length === 0 && (
+        <div className="col-span-full text-center py-12">
+          <p className="text-gray-500">No images found</p>
+        </div>
+      )}
     </div>
   );
 }
