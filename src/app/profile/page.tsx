@@ -6,7 +6,7 @@ import React, { useState, useEffect } from 'react';
 import Layout from '@/components/Layout';
 import UserProfile from '@/components/UserProfile';
 import { withAuth } from '@/lib/auth';
-import ImageUpload from '@/components/ImageUpload';
+import ImageUpload from '@/components/images/ImageUpload';
 
 function OwnProfile() {
   const [user, setUser] = useState(null);
