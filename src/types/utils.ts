@@ -1,3 +1,5 @@
+// src/types/utils.ts
+
 // Generic Types
 export type Nullable<T> = T | null;
 export type Optional<T> = T | undefined;
@@ -24,9 +26,8 @@ export type WithChildren<T = {}> = T & { children?: React.ReactNode };
 export type WithClassName<T = {}> = T & { className?: string };
 export type WithRef<T = {}> = T & { ref?: React.Ref<any> };
 
-// Form Types
+// Form Utility Types
 export type FormErrors<T> = Partial<Record<keyof T, string>>;
-
 export type FormTouched<T> = Partial<Record<keyof T, boolean>>;
 
 export interface FormState<T> {
@@ -37,7 +38,6 @@ export interface FormState<T> {
   isValid: boolean;
 }
 
-// Event Handler Types
 export interface CustomChangeEvent<T> {
   target: {
     name: keyof T;
@@ -46,36 +46,6 @@ export interface CustomChangeEvent<T> {
 }
 
 export type ChangeHandler<T> = (event: CustomChangeEvent<T>) => void;
-
-// API Response Types
-export interface ApiErrorResponse {
-  error: string;
-  code?: string;
-  details?: Record<string, any>;
-}
-
-export interface ApiSuccessResponse<T> {
-  data: T;
-  message?: string;
-  meta?: Record<string, any>;
-}
-
-// Route Types
-export interface RouteParams {
-  [key: string]: string | string[];
-}
-
-export interface QueryParams {
-  [key: string]: string | number | boolean | undefined;
-}
-
-// Auth Types
-export interface JWTPayload {
-  sub: string;
-  role: string;
-  iat: number;
-  exp: number;
-}
 
 // Cache Types
 export interface CacheOptions {
@@ -93,11 +63,11 @@ export interface CacheEntry<T> {
 // Validation Types
 export type ValidationRule<T> = (value: T) => string | undefined;
 
-export interface ValidationSchema<T> {
-  [K in keyof T]: ValidationRule<T[K]>[];
-}
+export type ValidationSchema<T> = {
+  [K in keyof T]: Array<ValidationRule<T[K]>>;
+};
 
-// UI Component Types
+// UI Types
 export type Size = 'xs' | 'sm' | 'md' | 'lg' | 'xl';
 export type Variant = 'primary' | 'secondary' | 'danger' | 'warning' | 'success';
 export type Position = 'top' | 'right' | 'bottom' | 'left';

@@ -1,6 +1,28 @@
+// src/types/prisma.ts
 import { Prisma } from '@prisma/client';
 
-// User types
+// Base Prisma types
+export type User = Prisma.UserGetPayload<{}>;
+export type Image = Prisma.ImageGetPayload<{}>;
+export type Annotation = Prisma.AnnotationGetPayload<{}>;
+export type Token = Prisma.TokenGetPayload<{}>;
+
+// Export all enums directly from Prisma
+export {
+  UserRole,
+  AnnotationType,
+  TokenType
+} from '@prisma/client';
+
+// Input/Update types
+export type UserCreateInput = Prisma.UserCreateInput;
+export type UserUpdateInput = Prisma.UserUpdateInput;
+export type ImageCreateInput = Prisma.ImageCreateInput;
+export type ImageUpdateInput = Prisma.ImageUpdateInput;
+export type AnnotationCreateInput = Prisma.AnnotationCreateInput;
+export type AnnotationUpdateInput = Prisma.AnnotationUpdateInput;
+
+// Types with relations
 export type UserWithRelations = Prisma.UserGetPayload<{
   include: {
     images: true;
@@ -9,10 +31,6 @@ export type UserWithRelations = Prisma.UserGetPayload<{
   };
 }>;
 
-export type UserCreateInput = Prisma.UserCreateInput;
-export type UserUpdateInput = Prisma.UserUpdateInput;
-
-// Image types
 export type ImageWithRelations = Prisma.ImageGetPayload<{
   include: {
     uploadedBy: true;
@@ -24,16 +42,11 @@ export type ImageWithRelations = Prisma.ImageGetPayload<{
     _count: {
       select: {
         annotations: true;
-        likes: true;
       };
     };
   };
 }>;
 
-export type ImageCreateInput = Prisma.ImageCreateInput;
-export type ImageUpdateInput = Prisma.ImageUpdateInput;
-
-// Annotation types
 export type AnnotationWithRelations = Prisma.AnnotationGetPayload<{
   include: {
     image: true;
@@ -41,17 +54,13 @@ export type AnnotationWithRelations = Prisma.AnnotationGetPayload<{
   };
 }>;
 
-export type AnnotationCreateInput = Prisma.AnnotationCreateInput;
-export type AnnotationUpdateInput = Prisma.AnnotationUpdateInput;
-
-// Token types
 export type TokenWithRelations = Prisma.TokenGetPayload<{
   include: {
     user: true;
   };
 }>;
 
-// Database query types
+// Query builder types
 export type WhereClause = {
   AND?: WhereClause[];
   OR?: WhereClause[];
@@ -66,7 +75,6 @@ export type Include = {
   [key: string]: boolean | Include;
 };
 
-// Query builder types
 export interface QueryOptions {
   where?: WhereClause;
   orderBy?: OrderByClause;

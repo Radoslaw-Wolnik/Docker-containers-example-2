@@ -1,59 +1,66 @@
-import { User, Image, Annotation, UserRole } from '@prisma/client';
+// src/types/global.d.ts
+import { User, Image, Annotation, UserRole, AnnotationType, Token } from './prisma';
+export { User, Image, Annotation, UserRole, AnnotationType, Token }
 
-// Safe User type (excluding sensitive data)
+// User Types
 export type SafeUser = Omit<User, 
   'password' | 
   'createdAt' | 
   'updatedAt' | 
-  'emailVerified' | 
-  'banExpiresAt'
+  'banExpiresAt' |
+  'Deactivated' |
+  'lastActive'
 > & {
   createdAt: string;
   updatedAt: string;
-  emailVerified?: string | null;
   banExpiresAt?: string | null;
+  lastActive: string;
 };
 
-// Session User type
-export interface SessionUser {
-  id: number;
-  email: string;
-  username: string;
-  role: UserRole;
-  profilePicture?: string | null;
-}
+export type SessionUser = Pick<SafeUser, 'id' | 'email' | 'username' | 'role' | 'profilePicture'>;
 
-// Image with relations
-export interface ExtendedImage extends Omit<Image, 'createdAt' | 'updatedAt'> {
+// Image Types
+export type ExtendedImage = Omit<Image, 'createdAt' | 'updatedAt'> & {
   createdAt: string;
   updatedAt: string;
   uploadedBy?: SafeUser;
   annotations?: SafeAnnotation[];
   _count?: {
     annotations: number;
-    likes: number;
   };
-}
+};
 
-// Safe Annotation type
-export interface SafeAnnotation extends Omit<Annotation, 'createdAt' | 'updatedAt'> {
+// Annotation Types
+export type SafeAnnotation = Omit<Annotation, 'createdAt' | 'updatedAt'> & {
   createdAt: string;
   updatedAt: string;
   createdBy?: SafeUser;
-}
+};
 
-// API Response types
+// API Types
 export interface ApiResponse<T = any> {
   data?: T;
   error?: string;
   message?: string;
 }
 
-// Pagination types
+export interface ApiErrorResponse {
+  error: string;
+  code?: string;
+  details?: Record<string, any>;
+}
+
+export interface ApiSuccessResponse<T> {
+  data: T;
+  message?: string;
+  meta?: Record<string, any>;
+}
+
+// Pagination Types
 export interface PaginationParams {
   page: number;
   limit: number;
-  sortBy?: string;
+  sortBy?: keyof User | keyof Image | keyof Annotation;
   sortOrder?: 'asc' | 'desc';
   search?: string;
 }
@@ -68,24 +75,24 @@ export interface PaginatedResponse<T> {
   };
 }
 
-// Form types
+// Form Types
 export interface LoginFormData {
-  email: string;
+  email: User['email'];
   password: string;
   remember?: boolean;
 }
 
 export interface RegisterFormData {
-  username: string;
-  email: string;
+  username: User['username'];
+  email: User['email'];
   password: string;
   confirmPassword: string;
 }
 
-// Image upload types
+// Upload Types
 export interface ImageUploadResponse {
-  imageId: number;
-  url: string;
+  imageId: Image['id'];
+  url: Image['filePath'];
   thumbnailUrl?: string;
 }
 
@@ -95,68 +102,48 @@ export interface UploadProgress {
   error?: string;
 }
 
-// Annotation types
+// Annotation Input Types
 export interface AnnotationCreateInput {
-  type: 'DOT' | 'ARROW';
-  x: number;
-  y: number;
-  endX?: number;
-  endY?: number;
-  label: string;
-  description?: string;
-  imageId: number;
+  type: AnnotationType;
+  x: Annotation['x'];
+  y: Annotation['y'];
+  endX?: Annotation['endX'];
+  endY?: Annotation['endY'];
+  label: Annotation['label'];
+  description?: Annotation['description'];
+  imageId: Annotation['imageId'];
 }
 
 export interface AnnotationUpdateInput extends Partial<AnnotationCreateInput> {
-  isHidden?: boolean;
+  isHidden?: Annotation['isHidden'];
 }
 
-// Filter types
+// Filter Types
 export interface ImageFilters {
   visibility?: 'all' | 'public' | 'private';
   dateRange?: 'all' | 'today' | 'week' | 'month' | 'year';
   hasAnnotations?: boolean;
-  userId?: number;
+  userId?: User['id'];
   type?: string[];
 }
 
-// Sort options
+// Sort Types
 export type SortOption = {
-  field: string;
+  field: keyof User | keyof Image | keyof Annotation;
   direction: 'asc' | 'desc';
   label: string;
 };
 
-// Error types
-export interface AppError extends Error {
-  statusCode?: number;
-  code?: string;
-}
+// UI Component Types
+export type ToastType = 'success' | 'error' | 'warning' | 'info';
 
-// User preferences
-export interface UserPreferences {
-  theme: 'light' | 'dark' | 'system';
-  emailNotifications: boolean;
-  annotationDefaults: {
-    color: string;
-    size: number;
-    defaultType: 'DOT' | 'ARROW';
-  };
-  displaySettings: {
-    showAnnotationLabels: boolean;
-    showAnnotationCount: boolean;
-    gridView: 'compact' | 'comfortable';
-  };
-}
-
-// Component prop types
-export interface TableColumn<T> {
-  key: keyof T;
-  title: string;
-  render?: (value: any, record: T) => React.ReactNode;
-  sortable?: boolean;
-  width?: string | number;
-  align?: 'left' | 'center' | 'right';
+export interface ToastProps {
+  id: string;
+  type: ToastType;
+  message: string;
+  title?: string;
+  duration?: number;
+  onClose?: () => void;
 }
 
 export interface ModalProps {
@@ -170,14 +157,34 @@ export interface ModalProps {
   closeOnEsc?: boolean;
 }
 
-// Toast types
-export type ToastType = 'success' | 'error' | 'warning' | 'info';
+export interface TableColumn<T> {
+  key: keyof T;
+  title: string;
+  render?: (value: any, record: T) => React.ReactNode;
+  sortable?: boolean;
+  width?: string | number;
+  align?: 'left' | 'center' | 'right';
+}
 
-export interface ToastProps {
-  id: string;
-  type: ToastType;
-  message: string;
-  title?: string;
-  duration?: number;
-  onClose?: () => void;
+// Error Types
+export interface AppError extends Error {
+  statusCode?: number;
+  code?: string;
+}
+
+// Route Types
+export interface RouteParams {
+  [key: string]: string | string[];
+}
+
+export interface QueryParams {
+  [key: string]: string | number | boolean | undefined;
+}
+
+// Auth Types
+export interface JWTPayload {
+  sub: string;
+  role: UserRole;
+  iat: number;
+  exp: number;
 }
