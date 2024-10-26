@@ -1,66 +1,86 @@
 // src/hooks/useImageUpload.ts
 import { useState, useCallback } from 'react';
-import { ImageUploadResponse, UploadProgress } from '@/types/global';
-import { ErrorResponse } from '@/types/api';
+import { useToast } from './useToast';
+import { FileProcessingOptions,  } from '@/types/file';
+import { ImageUploadResponse } from '@/types/global';
 
-export function useImageUpload() {
-  const [uploading, setUploading] = useState(false);
-  const [progress, setProgress] = useState<UploadProgress>({
-    progress: 0,
-    status: 'idle'
-  });
+interface UseImageUploadOptions {
+  onSuccess?: (response: ImageUploadResponse) => void;
+  onError?: (error: Error) => void;
+  onProgress?: (progress: number) => void;
+}
 
-  const upload = useCallback(async (file: File): Promise<ImageUploadResponse> => {
-    setUploading(true);
-    setProgress({ progress: 0, status: 'uploading' });
+export function useImageUpload(options: UseImageUploadOptions = {}) {
+  const [progress, setProgress] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const { error: toastError, success: toastSuccess} = useToast();
 
-    const formData = new FormData();
-    formData.append('image', file);
-
+  const upload = useCallback(async (
+    file: File,
+    processingOptions?: FileProcessingOptions
+  ) => {
     try {
-      return await new Promise<ImageUploadResponse>((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        
+      setLoading(true);
+      setProgress(0);
+
+      const formData = new FormData();
+      formData.append('file', file);
+      if (processingOptions) {
+        formData.append('options', JSON.stringify(processingOptions));
+      }
+
+      const xhr = new XMLHttpRequest();
+      
+      const uploadPromise = new Promise<ImageUploadResponse>((resolve, reject) => {
         xhr.upload.addEventListener('progress', (event) => {
           if (event.lengthComputable) {
-            const percentComplete = (event.loaded / event.total) * 100;
-            setProgress({
-              progress: Math.round(percentComplete),
-              status: 'uploading'
-            });
+            const progressValue = (event.loaded / event.total) * 100;
+            setProgress(progressValue);
+            options.onProgress?.(progressValue);
           }
         });
 
         xhr.onload = () => {
-          try {
-            const response = JSON.parse(xhr.response);
-            if (xhr.status >= 200 && xhr.status < 300 && !('error' in response)) {
-              resolve(response.data);
-            } else {
-              reject(new Error(response.error || 'Upload failed'));
-            }
-          } catch (e) {
-            reject(new Error('Invalid response format'));
+          if (xhr.status >= 200 && xhr.status < 300) {
+            const response = JSON.parse(xhr.responseText);
+            resolve(response);
+          } else {
+            reject(new Error('Upload failed'));
           }
         };
 
         xhr.onerror = () => reject(new Error('Network error'));
-        
-        xhr.open('POST', '/api/images/upload');
-        xhr.send(formData);
       });
+
+      xhr.open('POST', '/api/images/upload');
+      xhr.send(formData);
+
+      const response = await uploadPromise;
+      options.onSuccess?.(response);
+      
+      toastSuccess({
+        title: 'Success',
+        message: 'Image uploaded successfully'
+      });
+
+      return response;
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Upload failed';
-      setProgress({
-        progress: 0,
-        status: 'error',
-        error: errorMessage
+      const err = error as Error;
+      options.onError?.(err);
+      toastError({
+        title: 'Error',
+        message: err.message || "error during upload"
       });
       throw error;
     } finally {
-      setUploading(false);
+      setLoading(false);
+      setProgress(0);
     }
-  }, []);
+  }, [options, toastError, toastSuccess]);
 
-  return { upload, uploading, progress };
+  return {
+    upload,
+    progress,
+    loading
+  };
 }

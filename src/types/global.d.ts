@@ -27,15 +27,33 @@ export type ExtendedImage = Omit<Image, 'createdAt' | 'updatedAt'> & {
   annotations?: SafeAnnotation[];
   _count?: {
     annotations: number;
+    views: number; // <---------------------------------- not sure about this one
   };
 };
 
 // Annotation Types
+export type AnnotationType = 'dot' | 'arrow';
+
+export interface SafeAnnotation {
+  id: number;
+  type: AnnotationType;
+  x: number;
+  y: number;
+  label: string;
+  description: string | null;
+  imageId: number;
+  userId: number;
+  endX: number | null;
+  endY: number | null;
+  isHidden: boolean;
+}
+/* prev
 export type SafeAnnotation = Omit<Annotation, 'createdAt' | 'updatedAt'> & {
   createdAt: string;
   updatedAt: string;
   createdBy?: SafeUser;
 };
+*/
 
 // API Types
 export interface ApiResponse<T = any> {
@@ -195,3 +213,13 @@ export type SafeImage = Omit<Image, 'createdAt' | 'updatedAt'> & {
   uploadedBy?: SafeUser;
   annotations?: SafeAnnotation[];
 };
+
+
+/// new ones
+
+export interface Point {
+  x: number;
+  y: number;
+}
+
+export type ImageAnnotatorMode = 'view' | 'edit';

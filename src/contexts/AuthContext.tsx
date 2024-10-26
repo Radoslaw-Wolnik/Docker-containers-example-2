@@ -1,35 +1,35 @@
 // src/contexts/AuthContext.tsx
-import { createContext, useContext, useCallback, useEffect } from 'react';
+import { createContext, useContext, useCallback, ReactNode } from 'react';
 import { useSession, signIn, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { SafeUser } from '@/types/global';
 
-export interface AuthContextType {
+interface AuthContextType {
   user: SafeUser | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  signIn: (credentials: { username: string; password: string }) => Promise<void>;
+  signIn: (credentials: { email: string; password: string }) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
-export const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const AuthContext = createContext<AuthContextType | null>(null);
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+export function AuthProvider({ children }: { children: ReactNode }) {
   const { data: session, status } = useSession();
   const router = useRouter();
 
-  const handleSignIn = useCallback(async (credentials: { username: string; password: string }) => {
+  const handleSignIn = useCallback(async (credentials: { email: string; password: string }) => {
     try {
       const result = await signIn('credentials', {
-        redirect: false,
         ...credentials,
+        redirect: false,
       });
 
       if (result?.error) {
         throw new Error(result.error);
       }
 
-      router.push('/');
+      router.push('/dashboard');
     } catch (error) {
       throw new Error('Authentication failed');
     }
@@ -37,7 +37,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const handleSignOut = useCallback(async () => {
     await signOut({ redirect: false });
-    router.push('/auth/signin');
+    router.push('/');
   }, [router]);
 
   const value = {
@@ -48,5 +48,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signOut: handleSignOut,
   };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+    </AuthContext.Provider>
+  );
+}
+
+// src/hooks/useAuth.ts
+export function useAuth() {
+  const session = useSession();
+  return {
+    user: session.data?.user as SafeUser | null,
+    isLoading: session.status === 'loading',
+    isAuthenticated: !!session.data
+  };
 }

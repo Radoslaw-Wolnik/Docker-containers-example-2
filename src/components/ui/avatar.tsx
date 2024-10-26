@@ -1,16 +1,17 @@
 import React from 'react';
 import { User, Camera, Upload } from 'lucide-react';
-import { useToast } from '@/components/ui/toast';
+import { useToast } from '@/hooks/useToast';
 
 interface AvatarProps {
   src?: string | null;
   size?: 'sm' | 'md' | 'lg' | 'xl';
   editable?: boolean;
   onUpload?: (file: File) => Promise<void>;
+  altText?: string;
 }
 
-export default function Avatar({ src, size = 'md', editable = false, onUpload }: AvatarProps) {
-  const { toast } = useToast();
+export default function Avatar({ src, size = 'md', editable = false, onUpload, altText = "avatar" }: AvatarProps) {
+  const { error: toastError, success: toastSuccess } = useToast();
   const inputRef = React.useRef<HTMLInputElement>(null);
 
   const sizeClasses = {
@@ -26,35 +27,31 @@ export default function Avatar({ src, size = 'md', editable = false, onUpload }:
 
     // Validate file
     if (!file.type.startsWith('image/')) {
-      toast({
+      toastError({
         title: 'Error',
-        description: 'Please upload an image file',
-        variant: 'error'
+        message: 'Please upload an image file'
       });
       return;
     }
 
     if (file.size > 5 * 1024 * 1024) { // 5MB limit
-      toast({
+      toastError({
         title: 'Error',
-        description: 'Image must be less than 5MB',
-        variant: 'error'
+        message: 'Image must be less than 5MB'
       });
       return;
     }
 
     try {
       await onUpload(file);
-      toast({
+      toastSuccess({
         title: 'Success',
-        description: 'Profile picture updated successfully',
-        variant: 'success'
+        message: 'Profile picture updated successfully'
       });
     } catch (error) {
-      toast({
+      toastError({
         title: 'Error',
-        description: 'Failed to update profile picture',
-        variant: 'error'
+        message: 'Failed to update profile picture'
       });
     }
   };
@@ -64,7 +61,7 @@ export default function Avatar({ src, size = 'md', editable = false, onUpload }:
       {src ? (
         <img
           src={src}
-          alt="Avatar"
+          alt={altText}
           className={`${sizeClasses[size]} rounded-full object-cover`}
         />
       ) : (
