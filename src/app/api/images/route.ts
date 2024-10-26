@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../auth/[...nextauth]/route';
 import prisma from '@/lib/prisma';
-import { processImage } from '@/utils/imageProcessing';
+import { processImage } from '@/utils/imageProcessing.util';
 import { ApiResponse, ImageCreateInput, ImageFilters, PaginationParams } from '@/types/global';
 import { BadRequestError, UnauthorizedError } from '@/lib/errors';
 import logger from '@/lib/logger';

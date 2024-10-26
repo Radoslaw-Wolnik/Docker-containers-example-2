@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
-import { processImage } from '@/utils/imageProcessing';
+import { processImage } from '@/utils/imageProcessing.util';
 import { BadRequestError, UnauthorizedError } from '@/lib/errors';
 import bcrypt from 'bcrypt';
 
