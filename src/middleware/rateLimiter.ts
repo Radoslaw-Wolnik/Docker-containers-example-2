@@ -1,7 +1,7 @@
 // middleware/rateLimiter.ts
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { rateLimiter } from '../lib/rateLimiter';
+import { rateLimiter } from '../src/lib/rateLimiter';
 
 export async function rateLimiterMiddleware(req: NextRequest) {
   try {
