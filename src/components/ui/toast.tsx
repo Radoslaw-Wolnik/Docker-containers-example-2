@@ -1,111 +1,69 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
-import { X, CheckCircle, AlertCircle, Info } from 'lucide-react';
+// components/ui/toast.tsx
+import { useContext } from "react";
+import { ToastContext } from "@/contexts/ToastContext";
+import type { Toast, ToastPosition } from "@/types/toast";
 
-type ToastVariant = 'default' | 'success' | 'error' | 'warning' | 'info';
-
-interface Toast {
-  id: string;
-  title?: string;
-  description: string;
-  variant?: ToastVariant;
-  duration?: number;
-}
-
-interface ToastContextValue {
-  toast: (props: Omit<Toast, 'id'>) => void;
-  dismiss: (id: string) => void;
-}
-
-const ToastContext = createContext<ToastContextValue | undefined>(undefined);
-
-export function ToastProvider({ children }: { children: React.ReactNode }) {
-  const [toasts, setToasts] = useState<Toast[]>([]);
-
-  const toast = useCallback(({ title, description, variant = 'default', duration = 5000 }: Omit<Toast, 'id'>) => {
-    const id = Math.random().toString(36).slice(2);
-    const newToast: Toast = { id, title, description, variant, duration };
-    
-    setToasts(current => [...current, newToast]);
-
-    if (duration > 0) {
-      setTimeout(() => {
-        setToasts(current => current.filter(t => t.id !== id));
-      }, duration);
-    }
-  }, []);
-
-  const dismiss = useCallback((id: string) => {
-    setToasts(current => current.filter(t => t.id !== id));
-  }, []);
+function ToastContainer() {
+  const { toasts, removeToast } = useContext(ToastContext)!;
 
   return (
-    <ToastContext.Provider value={{ toast, dismiss }}>
-      {children}
-      <ToastContainer toasts={toasts} onDismiss={dismiss} />
-    </ToastContext.Provider>
-  );
-}
-
-function ToastContainer({ toasts, onDismiss }: { toasts: Toast[]; onDismiss: (id: string) => void }) {
-  return (
-    <div className="fixed bottom-0 right-0 p-4 z-50 space-y-4">
-      {toasts.map(toast => (
+    <div className="fixed z-50 flex flex-col gap-2 p-4">
+      {toasts.map((toast: Toast) => (
         <div
           key={toast.id}
           className={`
-            max-w-sm w-full bg-white rounded-lg shadow-lg pointer-events-auto overflow-hidden
-            ${toast.variant === 'success' ? 'border-l-4 border-green-500' : ''}
-            ${toast.variant === 'error' ? 'border-l-4 border-red-500' : ''}
-            ${toast.variant === 'warning' ? 'border-l-4 border-yellow-500' : ''}
-            ${toast.variant === 'info' ? 'border-l-4 border-blue-500' : ''}
+            max-w-sm w-full bg-white rounded-lg shadow-lg overflow-hidden
+            ${toast.type === 'success' ? 'border-l-4 border-green-500' : ''}
+            ${toast.type === 'error' ? 'border-l-4 border-red-500' : ''}
+            ${toast.type === 'warning' ? 'border-l-4 border-yellow-500' : ''}
+            ${toast.type === 'info' ? 'border-l-4 border-blue-500' : ''}
           `}
+          style={getPositionStyles(toast.position)}
         >
           <div className="p-4">
-            <div className="flex items-start">
-              <div className="flex-shrink-0">
-                {toast.variant === 'success' && (
-                  <CheckCircle className="h-5 w-5 text-green-500" />
-                )}
-                {toast.variant === 'error' && (
-                  <AlertCircle className="h-5 w-5 text-red-500" />
-                )}
-                {toast.variant === 'warning' && (
-                  <AlertCircle className="h-5 w-5 text-yellow-500" />
-                )}
-                {toast.variant === 'info' && (
-                  <Info className="h-5 w-5 text-blue-500" />
-                )}
-              </div>
-              <div className="ml-3 w-0 flex-1">
-                {toast.title && (
-                  <p className="text-sm font-medium text-gray-900">
-                    {toast.title}
-                  </p>
-                )}
-                <p className="mt-1 text-sm text-gray-500">
-                  {toast.description}
-                </p>
-              </div>
-              <div className="ml-4 flex-shrink-0 flex">
-                <button
-                  onClick={() => onDismiss(toast.id)}
-                  className="bg-white rounded-md inline-flex text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-            </div>
+            {toast.title && (
+              <h4 className="text-sm font-medium text-gray-900">
+                {toast.title}
+              </h4>
+            )}
+            <p className="mt-1 text-sm text-gray-500">
+              {toast.message}
+            </p>
           </div>
+          {toast.dismissible && (
+            <button
+              onClick={() => removeToast(toast.id)}
+              className="absolute top-2 right-2 text-gray-400 hover:text-gray-600"
+            >
+              <span className="sr-only">Close</span>
+              <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+              </svg>
+            </button>
+          )}
         </div>
       ))}
     </div>
   );
 }
 
-export function useToast() {
-  const context = useContext(ToastContext);
-  if (!context) {
-    throw new Error('useToast must be used within a ToastProvider');
+function getPositionStyles(position?: ToastPosition): React.CSSProperties {
+  switch (position) {
+    case 'top-left':
+      return { top: 0, left: 0 };
+    case 'top-right':
+      return { top: 0, right: 0 };
+    case 'bottom-left':
+      return { bottom: 0, left: 0 };
+    case 'bottom-right':
+      return { bottom: 0, right: 0 };
+    case 'top-center':
+      return { top: 0, left: '50%', transform: 'translateX(-50%)' };
+    case 'bottom-center':
+      return { bottom: 0, left: '50%', transform: 'translateX(-50%)' };
+    default:
+      return { top: 0, right: 0 };
   }
-  return context;
 }
+
+export { ToastContainer };

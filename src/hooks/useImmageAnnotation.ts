@@ -1,7 +1,7 @@
 //src/hooks/useImageAnnotation.ts
 import { useState, useCallback } from 'react';
 import { Annotation, AnnotationCreateInput, AnnotationUpdateInput, AppError } from '@/types/global';
-import { useToast } from '@/components/ui/toast';
+import { useToast } from '@/hooks/useToast';
 import { ErrorResponse, AnnotationResponse, AnnotationsResponse, ApiResponse } from '@/types/api';
 
 
@@ -17,16 +17,15 @@ export function useImageAnnotation({
   const [annotations, setAnnotations] = useState<Annotation[]>(initialAnnotations);
   const [loading, setLoading] = useState(false);
   const [selectedAnnotation, setSelectedAnnotation] = useState<Annotation | null>(null);
-  const { toast } = useToast();
+  const { success: toastSuccess, error: toastError } = useToast();
 
   const handleError = (error: unknown) => {
     const errorMessage = error instanceof Error ? error.message : 
       typeof error === 'string' ? error : 'An unexpected error occurred';
     
-    toast({
+    toastError({
       title: 'Error',
-      description: errorMessage,
-      variant: 'error'  // Changed from 'destructive' to match ToastVariant type
+      message: errorMessage
     });
   };
 
@@ -46,7 +45,7 @@ export function useImageAnnotation({
     } finally {
       setLoading(false);
     }
-  }, [imageId, toast]);
+  }, [imageId, toastError]);
 
   const createAnnotation = useCallback(async (input: AnnotationCreateInput) => {
     try {
@@ -65,17 +64,16 @@ export function useImageAnnotation({
       const newAnnotation = data.data;
       setAnnotations(prev => [...prev, newAnnotation]);
       
-      toast({
+      toastSuccess({
         title: 'Success',
-        description: 'Annotation created successfully',
-        variant: 'success'
+        message: 'Annotation created successfully'
       });
       
       return newAnnotation;
     } catch (error) {
       throw handleError(error);
     }
-  }, [imageId, toast]);
+  }, [imageId, toastSuccess]);
 
   const updateAnnotation = useCallback(async (annotationId: number, updates: AnnotationUpdateInput) => {
     try {
@@ -100,17 +98,16 @@ export function useImageAnnotation({
         setSelectedAnnotation(updatedAnnotation);
       }
       
-      toast({
+      toastSuccess({
         title: 'Success',
-        description: 'Annotation updated successfully',
-        variant: 'success'
+        message: 'Annotation updated successfully'
       });
 
       return updatedAnnotation;
     } catch (error) {
       throw handleError(error);
     }
-  }, [selectedAnnotation, toast]);
+  }, [selectedAnnotation, toastSuccess]);
 
   const deleteAnnotation = useCallback(async (annotationId: number) => {
     try {
@@ -130,15 +127,14 @@ export function useImageAnnotation({
         setSelectedAnnotation(null);
       }
       
-      toast({
+      toastSuccess({
         title: 'Success',
-        description: 'Annotation deleted successfully',
-        variant: 'success'
+        message: 'Annotation deleted successfully'
       });
     } catch (error) {
       throw handleError(error);
     }
-  }, [selectedAnnotation, toast]);
+  }, [selectedAnnotation, toastSuccess]);
   
   const toggleAnnotationVisibility = useCallback(async (annotationId: number) => {
     const annotation = annotations.find(ann => ann.id === annotationId);
