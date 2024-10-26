@@ -1,9 +1,16 @@
+// src/app/api/annotations/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import prisma from '@/lib/prisma';
-import { authOptions } from '@/lib/auth';
+import { authOptions } from '../auth/[...nextauth]/route';
+import { 
+  ApiResponse, 
+  AnnotationCreateInput, 
+  AnnotationUpdateInput, 
+  SafeAnnotation 
+} from '@/types/global';
 import { BadRequestError, UnauthorizedError } from '@/lib/errors';
-import { AnnotationCreateInput, AnnotationUpdateInput } from '@/types/global';
+import logger from '@/lib/logger';
 
 export async function POST(req: NextRequest) {
   try {
@@ -13,6 +20,19 @@ export async function POST(req: NextRequest) {
     }
 
     const body: AnnotationCreateInput = await req.json();
+
+    // Verify image exists and user has access
+    const image = await prisma.image.findUnique({
+      where: { id: body.imageId },
+    });
+
+    if (!image) {
+      throw new BadRequestError('Image not found');
+    }
+
+    if (!image.isPublic && image.userId !== session.user.id) {
+      throw new UnauthorizedError('No access to this image');
+    }
 
     const annotation = await prisma.annotation.create({
       data: {
@@ -24,111 +44,29 @@ export async function POST(req: NextRequest) {
           select: {
             id: true,
             username: true,
+            profilePicture: true,
           },
         },
       },
     });
 
-    return NextResponse.json({ data: annotation });
+    logger.info('Annotation created', { 
+      userId: session.user.id, 
+      annotationId: annotation.id,
+      imageId: body.imageId 
+    });
+
+    const response: ApiResponse<SafeAnnotation> = {
+      data: annotation,
+      message: 'Annotation created successfully',
+    };
+
+    return NextResponse.json(response);
   } catch (error) {
-    console.error('Error creating annotation:', error);
-    const status = error instanceof BadRequestError ? 400 : 500;
+    logger.error('Error creating annotation:', error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to create annotation' },
-      { status }
-    );
-  }
-}
-
-export async function PUT(req: NextRequest) {
-  try {
-    const session = await getServerSession(authOptions);
-    if (!session) {
-      throw new UnauthorizedError('You must be logged in to update annotations');
-    }
-
-    const { searchParams } = new URL(req.url);
-    const id = searchParams.get('id');
-    
-    if (!id) {
-      throw new BadRequestError('Annotation ID is required');
-    }
-
-    const body: AnnotationUpdateInput = await req.json();
-
-    const annotation = await prisma.annotation.findUnique({
-      where: { id: parseInt(id) },
-    });
-
-    if (!annotation) {
-      throw new BadRequestError('Annotation not found');
-    }
-
-    if (annotation.userId !== session.user.id && session.user.role !== 'ADMIN') {
-      throw new UnauthorizedError('You do not have permission to update this annotation');
-    }
-
-    const updated = await prisma.annotation.update({
-      where: { id: parseInt(id) },
-      data: body,
-      include: {
-        createdBy: {
-          select: {
-            id: true,
-            username: true,
-          },
-        },
-      },
-    });
-
-    return NextResponse.json({ data: updated });
-  } catch (error) {
-    console.error('Error updating annotation:', error);
-    const status = error instanceof BadRequestError ? 400 : 500;
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Failed to update annotation' },
-      { status }
-    );
-  }
-}
-
-export async function DELETE(req: NextRequest) {
-  try {
-    const session = await getServerSession(authOptions);
-    if (!session) {
-      throw new UnauthorizedError('You must be logged in to delete annotations');
-    }
-
-    const { searchParams } = new URL(req.url);
-    const id = searchParams.get('id');
-
-    if (!id) {
-      throw new BadRequestError('Annotation ID is required');
-    }
-
-    const annotation = await prisma.annotation.findUnique({
-      where: { id: parseInt(id) },
-    });
-
-    if (!annotation) {
-      throw new BadRequestError('Annotation not found');
-    }
-
-    if (annotation.userId !== session.user.id && session.user.role !== 'ADMIN') {
-      throw new UnauthorizedError('You do not have permission to delete this annotation');
-    }
-
-    await prisma.annotation.delete({
-      where: { id: parseInt(id) },
-    });
-
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error('Error deleting annotation:', error);
-    const status = error instanceof BadRequestError ? 400 : 500;
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Failed to delete annotation' },
-      { status }
+      { status: error instanceof BadRequestError ? 400 : 500 }
     );
   }
 }
@@ -142,6 +80,14 @@ export async function GET(req: NextRequest) {
       throw new BadRequestError('Image ID is required');
     }
 
+    const image = await prisma.image.findUnique({
+      where: { id: parseInt(imageId) },
+    });
+
+    if (!image) {
+      throw new BadRequestError('Image not found');
+    }
+
     const annotations = await prisma.annotation.findMany({
       where: {
         imageId: parseInt(imageId),
@@ -151,6 +97,7 @@ export async function GET(req: NextRequest) {
           select: {
             id: true,
             username: true,
+            profilePicture: true,
           },
         },
       },
@@ -159,13 +106,16 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    return NextResponse.json({ data: annotations });
+    const response: ApiResponse<SafeAnnotation[]> = {
+      data: annotations,
+    };
+
+    return NextResponse.json(response);
   } catch (error) {
-    console.error('Error fetching annotations:', error);
-    const status = error instanceof BadRequestError ? 400 : 500;
+    logger.error('Error fetching annotations:', error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to fetch annotations' },
-      { status }
+      { status: error instanceof BadRequestError ? 400 : 500 }
     );
   }
 }

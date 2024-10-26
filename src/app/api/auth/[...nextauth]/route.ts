@@ -1,23 +1,45 @@
-import { NextApiRequest, NextApiResponse } from 'next';
-import NextAuth from 'next-auth';
-import CredentialsProvider from 'next-auth/providers/credentials';
-import { PrismaAdapter } from '@next-auth/prisma-adapter';
-import bcrypt from 'bcrypt';
+// src/app/api/auth/[...nextauth]/route.ts
+import { NextAuthOptions } from "next-auth";
+import CredentialsProvider from "next-auth/providers/credentials";
+import bcrypt from "bcrypt";
+import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import prisma from '@/lib/prisma';
-import { UserRole } from '@prisma/client';
+import { UserRole, SessionUser } from '@/types/global';
+import { UnauthorizedError } from '@/lib/errors';
+import logger from '@/lib/logger';
 
-export const authOptions = {
+declare module "next-auth" {
+  interface Session {
+    user: SessionUser;
+  }
+  
+  interface User {
+    id: string;
+    role: UserRole;
+    username: string;
+  }
+}
+
+declare module "next-auth/jwt" {
+  interface JWT {
+    id: string;
+    role: UserRole;
+    username: string;
+  }
+}
+
+export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
   providers: [
     CredentialsProvider({
       name: 'credentials',
       credentials: {
-        email: { label: 'Email', type: 'email' },
-        password: { label: 'Password', type: 'password' }
+        email: { label: "Email", type: "email" },
+        password: { label: "Password", type: "password" }
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
-          throw new Error('Invalid credentials');
+          throw new UnauthorizedError("Invalid credentials");
         }
 
         const user = await prisma.user.findUnique({
@@ -25,7 +47,7 @@ export const authOptions = {
         });
 
         if (!user || !user.password) {
-          throw new Error('Invalid credentials');
+          throw new UnauthorizedError("Invalid credentials");
         }
 
         const isPasswordValid = await bcrypt.compare(
@@ -34,8 +56,20 @@ export const authOptions = {
         );
 
         if (!isPasswordValid) {
-          throw new Error('Invalid credentials');
+          throw new UnauthorizedError("Invalid credentials");
         }
+
+        if (user.isBanned && user.banExpiresAt && user.banExpiresAt > new Date()) {
+          throw new UnauthorizedError("Account is banned");
+        }
+
+        // Update last active timestamp
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { lastActive: new Date() }
+        });
+
+        logger.info('User logged in', { userId: user.id });
 
         return {
           id: user.id.toString(),
@@ -61,20 +95,22 @@ export const authOptions = {
     },
     async session({ session, token }) {
       if (token) {
-        session.user.id = token.id;
-        session.user.role = token.role as UserRole;
-        session.user.username = token.username;
+        session.user = {
+          id: parseInt(token.id),
+          email: session.user.email,
+          username: token.username,
+          role: token.role,
+          profilePicture: session.user.profilePicture
+        };
       }
       return session;
     }
   },
   pages: {
     signIn: '/login',
-    signOut: '/login',
     error: '/login',
   },
-  secret: process.env.NEXTAUTH_SECRET,
 };
 
-const handler = NextAuth(authOptions);
+export const handler = NextAuthOptions(authOptions);
 export { handler as GET, handler as POST };

@@ -1,12 +1,15 @@
+// src/app/api/auth/register/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcrypt';
 import prisma from '@/lib/prisma';
 import { validateUser } from '@/utils/validation';
 import { BadRequestError } from '@/lib/errors';
+import { ApiResponse, RegisterFormData, UserCreateInput } from '@/types/global';
+import logger from '@/lib/logger';
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
+    const body: RegisterFormData = await req.json();
     const { username, email, password } = body;
 
     // Validate input
@@ -34,26 +37,35 @@ export async function POST(req: NextRequest) {
     const hashedPassword = await bcrypt.hash(password, 12);
 
     // Create user
+    const userData: UserCreateInput = {
+      username,
+      email,
+      password: hashedPassword,
+      role: 'USER',
+    };
+
     const user = await prisma.user.create({
-      data: {
-        username,
-        email,
-        password: hashedPassword,
-        role: 'USER',
-      },
+      data: userData,
       select: {
         id: true,
         username: true,
         email: true,
         role: true,
+        createdAt: true,
       },
     });
 
-    return NextResponse.json({
+    logger.info('New user registered', { userId: user.id });
+
+    const response: ApiResponse = {
       message: 'Registration successful',
-      user,
-    });
+      data: user,
+    };
+
+    return NextResponse.json(response);
   } catch (error) {
+    logger.error('Registration error:', error);
+    
     return NextResponse.json(
       {
         error: error instanceof Error ? error.message : 'Registration failed',
