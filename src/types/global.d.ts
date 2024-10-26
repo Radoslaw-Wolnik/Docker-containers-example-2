@@ -188,3 +188,10 @@ export interface JWTPayload {
   iat: number;
   exp: number;
 }
+
+export type SafeImage = Omit<Image, 'createdAt' | 'updatedAt'> & {
+  createdAt: string;
+  updatedAt: string;
+  uploadedBy?: SafeUser;
+  annotations?: SafeAnnotation[];
+};

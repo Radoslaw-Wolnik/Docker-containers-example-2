@@ -1,5 +1,5 @@
 import { User, Image, Annotation } from '@prisma/client';
-import { SafeUser, SafeImage, SafeAnnotation } from '@/types';
+import { SafeUser, SafeAnnotation, SafeImage } from '@/types/global';
 
 export function excludeFields<T, K extends keyof T>(
   obj: T,
@@ -11,8 +11,16 @@ export function excludeFields<T, K extends keyof T>(
 }
 
 export function sanitizeUser(user: User): SafeUser {
-  return excludeFields(user, ['password']) as SafeUser;
+  const safeUser = excludeFields(user, ['password']) as Omit<User, 'password'>;
+  return {
+    ...safeUser,
+    createdAt: safeUser.createdAt.toISOString(),
+    updatedAt: safeUser.updatedAt.toISOString(),
+    banExpiresAt: safeUser.banExpiresAt ? safeUser.banExpiresAt.toISOString() : null,
+    lastActive: safeUser.lastActive.toISOString(),
+  };
 }
+
 
 export function sanitizeImage(
   image: Image & {
@@ -22,12 +30,15 @@ export function sanitizeImage(
 ): SafeImage {
   return {
     ...image,
+    createdAt: image.createdAt.toISOString(),
+    updatedAt: image.updatedAt.toISOString(),
     uploadedBy: image.uploadedBy ? sanitizeUser(image.uploadedBy) : undefined,
     annotations: image.annotations
       ? image.annotations.map(sanitizeAnnotation)
       : undefined,
   };
 }
+
 
 export function sanitizeAnnotation(
   annotation: Annotation & {
@@ -36,9 +47,12 @@ export function sanitizeAnnotation(
 ): SafeAnnotation {
   return {
     ...annotation,
+    createdAt: annotation.createdAt.toISOString(),
+    updatedAt: annotation.updatedAt.toISOString(),
     createdBy: annotation.createdBy ? sanitizeUser(annotation.createdBy) : undefined,
   };
 }
+
 
 export function createPaginationObject(
   page: number,
