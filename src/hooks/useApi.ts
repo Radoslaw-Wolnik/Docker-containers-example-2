@@ -1,16 +1,17 @@
 // src/hooks/useApi.ts
 import { useState, useCallback } from 'react';
 import { useConfig } from './useConfig';
-import { handleError } from '../utils/error';
+import { ApiResponse, ApiErrorResponse } from '@/types/global';
+import { AppError } from '@/lib/errors';
 
 interface UseApiOptions<T> {
   onSuccess?: (data: T) => void;
-  onError?: (error: Error) => void;
+  onError?: (error: AppError) => void;
 }
 
 export function useApi<T = unknown>(endpoint: string, options: UseApiOptions<T> = {}) {
   const [data, setData] = useState<T | null>(null);
-  const [error, setError] = useState<Error | null>(null);
+  const [error, setError] = useState<AppError | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const { apiUrl } = useConfig();
 
@@ -28,18 +29,21 @@ export function useApi<T = unknown>(endpoint: string, options: UseApiOptions<T> 
           },
         });
 
+        const result = await response.json() as ApiResponse<T>;
+
         if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+          throw new AppError(result.error || 'Request failed', response.status);
         }
 
-        const result = await response.json();
-        setData(result);
-        options.onSuccess?.(result);
-        return result;
+        if (result.data) {
+          setData(result.data);
+          options.onSuccess?.(result.data);
+        }
+        return result.data;
       } catch (err) {
-        const error = handleError(err);
-        setError(new Error(error.message));
-        options.onError?.(new Error(error.message));
+        const error = err instanceof AppError ? err : new AppError('An error occurred', 500);
+        setError(error);
+        options.onError?.(error);
         throw error;
       } finally {
         setIsLoading(false);
@@ -50,11 +54,17 @@ export function useApi<T = unknown>(endpoint: string, options: UseApiOptions<T> 
 
   const get = useCallback(() => execute({ method: 'GET' }), [execute]);
   
-  const post = useCallback((data: unknown) => 
-    execute({ method: 'POST', body: JSON.stringify(data) }), [execute]);
+  const post = useCallback(<TData = unknown>(data: TData) => 
+    execute({ 
+      method: 'POST', 
+      body: JSON.stringify(data) 
+    }), [execute]);
   
-  const put = useCallback((data: unknown) => 
-    execute({ method: 'PUT', body: JSON.stringify(data) }), [execute]);
+  const put = useCallback(<TData = unknown>(data: TData) => 
+    execute({ 
+      method: 'PUT', 
+      body: JSON.stringify(data) 
+    }), [execute]);
   
   const del = useCallback(() => 
     execute({ method: 'DELETE' }), [execute]);

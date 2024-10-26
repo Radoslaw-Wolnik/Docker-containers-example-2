@@ -1,3 +1,8 @@
+// src/hooks/usePermissions
+import { useSession } from "next-auth/react";
+import { useCallback } from "react";
+import { UserRole } from "@prisma/client";
+
 export function usePermissions() {
     const { data: session } = useSession();
     

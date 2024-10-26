@@ -1,144 +1,164 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Annotation, AnnotationCreateInput } from '@/types/global';
+//src/hooks/useImageAnnotation.ts
+import { useState, useCallback } from 'react';
+import { Annotation, AnnotationCreateInput, AnnotationUpdateInput, AppError } from '@/types/global';
 import { useToast } from '@/components/ui/toast';
+import { ErrorResponse, AnnotationResponse, AnnotationsResponse, ApiResponse } from '@/types/api';
+
 
 interface UseImageAnnotationProps {
   imageId: number;
   initialAnnotations?: Annotation[];
 }
 
-export function useImageAnnotation({ imageId, initialAnnotations = [] }: UseImageAnnotationProps) {
+export function useImageAnnotation({
+  imageId,
+  initialAnnotations = []
+}: UseImageAnnotationProps) {
   const [annotations, setAnnotations] = useState<Annotation[]>(initialAnnotations);
   const [loading, setLoading] = useState(false);
   const [selectedAnnotation, setSelectedAnnotation] = useState<Annotation | null>(null);
   const { toast } = useToast();
 
-  useEffect(() => {
-    if (initialAnnotations.length === 0) {
-      fetchAnnotations();
-    }
-  }, [imageId]);
+  const handleError = (error: unknown) => {
+    const errorMessage = error instanceof Error ? error.message : 
+      typeof error === 'string' ? error : 'An unexpected error occurred';
+    
+    toast({
+      title: 'Error',
+      description: errorMessage,
+      variant: 'error'  // Changed from 'destructive' to match ToastVariant type
+    });
+  };
 
-  const fetchAnnotations = async () => {
+  const fetchAnnotations = useCallback(async () => {
     try {
       setLoading(true);
       const response = await fetch(`/api/annotations?imageId=${imageId}`);
-      const data = await response.json();
+      const data = await response.json() as AnnotationsResponse | ErrorResponse;
       
-      if (data.error) throw new Error(data.error);
+      if (!response.ok || 'error' in data) {
+        throw new Error('error' in data ? data.error : 'Failed to fetch annotations');
+      }
+
       setAnnotations(data.data);
     } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to load annotations',
-        variant: 'destructive',
-      });
+      throw handleError(error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [imageId, toast]);
 
-  const createAnnotation = async (input: AnnotationCreateInput) => {
+  const createAnnotation = useCallback(async (input: AnnotationCreateInput) => {
     try {
       const response = await fetch('/api/annotations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(input),
+        body: JSON.stringify({ ...input, imageId }),
       });
       
-      const data = await response.json();
-      if (data.error) throw new Error(data.error);
+      const data = await response.json() as AnnotationResponse | ErrorResponse;
       
-      setAnnotations([...annotations, data.data]);
+      if (!response.ok || 'error' in data) {
+        throw new Error('error' in data ? data.error : 'Failed to create annotation');
+      }
+      
+      const newAnnotation = data.data;
+      setAnnotations(prev => [...prev, newAnnotation]);
+      
       toast({
         title: 'Success',
         description: 'Annotation created successfully',
+        variant: 'success'
       });
       
-      return data.data;
+      return newAnnotation;
     } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to create annotation',
-        variant: 'destructive',
-      });
-      throw error;
+      throw handleError(error);
     }
-  };
+  }, [imageId, toast]);
 
-  const updateAnnotation = async (id: number, updates: Partial<Annotation>) => {
+  const updateAnnotation = useCallback(async (annotationId: number, updates: AnnotationUpdateInput) => {
     try {
-      const response = await fetch(`/api/annotations/${id}`, {
+      const response = await fetch(`/api/annotations/${annotationId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updates),
       });
       
-      const data = await response.json();
-      if (data.error) throw new Error(data.error);
+      const data = await response.json() as AnnotationResponse | ErrorResponse;
       
-      setAnnotations(annotations.map(ann => 
-        ann.id === id ? { ...ann, ...data.data } : ann
-      ));
+      if (!response.ok || 'error' in data) {
+        throw new Error('error' in data ? data.error : 'Failed to update annotation');
+      }
       
-      if (selectedAnnotation?.id === id) {
-        setSelectedAnnotation({ ...selectedAnnotation, ...data.data });
+      const updatedAnnotation = data.data;
+      setAnnotations(prev => 
+        prev.map(ann => ann.id === annotationId ? updatedAnnotation : ann)
+      );
+      
+      if (selectedAnnotation?.id === annotationId) {
+        setSelectedAnnotation(updatedAnnotation);
       }
       
       toast({
         title: 'Success',
         description: 'Annotation updated successfully',
+        variant: 'success'
       });
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to update annotation',
-        variant: 'destructive',
-      });
-      throw error;
-    }
-  };
 
-  const deleteAnnotation = async (id: number) => {
+      return updatedAnnotation;
+    } catch (error) {
+      throw handleError(error);
+    }
+  }, [selectedAnnotation, toast]);
+
+  const deleteAnnotation = useCallback(async (annotationId: number) => {
     try {
-      const response = await fetch(`/api/annotations/${id}`, {
+      const response = await fetch(`/api/annotations/${annotationId}`, {
         method: 'DELETE',
       });
       
-      const data = await response.json();
-      if (data.error) throw new Error(data.error);
+      const data = await response.json() as ApiResponse<void> | ErrorResponse;
       
-      setAnnotations(annotations.filter(ann => ann.id !== id));
-      if (selectedAnnotation?.id === id) {
+      if (!response.ok || 'error' in data) {
+        throw new Error('error' in data ? data.error : 'Failed to delete annotation');
+      }
+      
+      setAnnotations(prev => prev.filter(ann => ann.id !== annotationId));
+      
+      if (selectedAnnotation?.id === annotationId) {
         setSelectedAnnotation(null);
       }
       
       toast({
         title: 'Success',
         description: 'Annotation deleted successfully',
+        variant: 'success'
       });
     } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to delete annotation',
-        variant: 'destructive',
-      });
-      throw error;
+      throw handleError(error);
     }
-  };
-
-  const toggleAnnotationVisibility = useCallback(async (id: number) => {
-    const annotation = annotations.find(ann => ann.id === id);
+  }, [selectedAnnotation, toast]);
+  
+  const toggleAnnotationVisibility = useCallback(async (annotationId: number) => {
+    const annotation = annotations.find(ann => ann.id === annotationId);
     if (!annotation) return;
 
-    await updateAnnotation(id, { isHidden: !annotation.isHidden });
-  }, [annotations]);
+    try {
+      await updateAnnotation(annotationId, { 
+        isHidden: !annotation.isHidden 
+      });
+    } catch (error) {
+      handleError(error);
+    }
+  }, [annotations, updateAnnotation]);
 
   return {
     annotations,
     loading,
     selectedAnnotation,
     setSelectedAnnotation,
+    fetchAnnotations,
     createAnnotation,
     updateAnnotation,
     deleteAnnotation,
