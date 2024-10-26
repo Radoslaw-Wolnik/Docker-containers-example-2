@@ -1,90 +1,139 @@
-// File: src/app/register/page.tsx
-
+// src/app/(auth)/register/page.tsx
 'use client';
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Layout from '@/components/Layout';
+import Link from 'next/link';
+import { User, Mail, Lock } from 'lucide-react';
+import { Input, PasswordInput } from '@/components/ui/Input';
+import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
+import { useToast } from '@/components/ui/Toast';
 
-export default function Register() {
-  const [username, setUsername] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+export default function RegisterPage() {
   const router = useRouter();
+  const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(false);
+  const [formData, setFormData] = useState({
+    username: '',
+    email: '',
+    password: '',
+    confirmPassword: '',
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+
+    if (formData.password !== formData.confirmPassword) {
+      toast.error('Passwords do not match');
+      setIsLoading(false);
+      return;
+    }
+
     try {
       const response = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, email, password }),
+        body: JSON.stringify({
+          username: formData.username,
+          email: formData.email,
+          password: formData.password,
+        }),
       });
 
-      if (response.ok) {
-        router.push('/login');
-      } else {
-        const data = await response.json();
-        setError(data.error || 'Registration failed');
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Registration failed');
       }
+
+      toast.success('Registration successful');
+      router.push('/login');
     } catch (error) {
-      setError('An error occurred. Please try again.');
+      toast.error(error instanceof Error ? error.message : 'Registration failed');
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <Layout>
-      <div className="max-w-md mx-auto mt-10">
-        <h1 className="text-3xl font-bold mb-6 text-primary-800">Register</h1>
-        {error && <p className="text-red-500 mb-4">{error}</p>}
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label htmlFor="username" className="block mb-1 text-gray-700">Username</label>
-            <input
-              type="text"
-              id="username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-              required
-            />
-          </div>
-          <div>
-            <label htmlFor="email" className="block mb-1 text-gray-700">Email</label>
-            <input
-              type="email"
-              id="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-              required
-            />
-          </div>
-          <div>
-            <label htmlFor="password" className="block mb-1 text-gray-700">Password</label>
-            <input
-              type="password"
-              id="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-              required
-            />
-          </div>
-          <button 
-            type="submit" 
-            className="w-full bg-primary-500 hover:bg-primary-600 text-white font-bold py-2 px-4 rounded-md transition duration-300"
-            disabled={isLoading}
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <Card className="max-w-md w-full">
+        <div className="text-center mb-8">
+          <h2 className="text-3xl font-bold text-gray-900">Create an account</h2>
+          <p className="mt-2 text-sm text-gray-600">
+            Already have an account?{' '}
+            <Link href="/login" className="text-blue-600 hover:text-blue-500">
+              Sign in
+            </Link>
+          </p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <Input
+            label="Username"
+            required
+            icon={<User className="w-5 h-5 text-gray-400" />}
+            value={formData.username}
+            onChange={(e) =>
+              setFormData({ ...formData, username: e.target.value })
+            }
+          />
+
+          <Input
+            label="Email address"
+            type="email"
+            required
+            icon={<Mail className="w-5 h-5 text-gray-400" />}
+            value={formData.email}
+            onChange={(e) =>
+              setFormData({ ...formData, email: e.target.value })
+            }
+          />
+
+          <PasswordInput
+            label="Password"
+            required
+            icon={<Lock className="w-5 h-5 text-gray-400" />}
+            value={formData.password}
+            onChange={(e) =>
+              setFormData({ ...formData, password: e.target.value })
+            }
+          />
+
+          <PasswordInput
+            label="Confirm Password"
+            required
+            icon={<Lock className="w-5 h-5 text-gray-400" />}
+            value={formData.confirmPassword}
+            onChange={(e) =>
+              setFormData({ ...formData, confirmPassword: e.target.value })
+            }
+          />
+
+          <Button
+            type="submit"
+            className="w-full"
+            loading={isLoading}
           >
-            {isLoading ? 'Registering...' : 'Register'}
-          </button>
+            Create account
+          </Button>
         </form>
-      </div>
-    </Layout>
+
+        <div className="mt-6">
+          <p className="text-xs text-center text-gray-600">
+            By creating an account, you agree to our{' '}
+            <Link href="/terms" className="text-blue-600 hover:text-blue-500">
+              Terms of Service
+            </Link>{' '}
+            and{' '}
+            <Link href="/privacy" className="text-blue-600 hover:text-blue-500">
+              Privacy Policy
+            </Link>
+          </p>
+        </div>
+      </Card>
+    </div>
   );
 }

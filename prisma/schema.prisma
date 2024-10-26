@@ -1,4 +1,3 @@
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -9,19 +8,21 @@ datasource db {
 }
 
 model User {
-  id                Int                 @id @default(autoincrement())
-  username          String              @unique
-  email             String              @unique
-  password          String
-  profilePicture    String?
-  role              UserRole            @default(USER)
-  createdAt         DateTime            @default(now())
-  updatedAt         DateTime            @updatedAt
-  tokens            Token[]
-  isBanned          Boolean             @default(false)
-  banExpiresAt      DateTime?
-  Deactivated       DateTime?
-  lastActive        DateTime            @default(now())
+  id             Int              @id @default(autoincrement())
+  username       String           @unique
+  email          String           @unique
+  password       String
+  profilePicture String?
+  role          UserRole         @default(USER)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  images         Image[]
+  annotations    Annotation[]
+  tokens         Token[]
+  isBanned       Boolean          @default(false)
+  banExpiresAt   DateTime?
+  Deactivated    DateTime?
+  lastActive     DateTime         @default(now())
 }
 
 enum UserRole {
@@ -29,13 +30,50 @@ enum UserRole {
   ADMIN
 }
 
+model Image {
+  id          Int          @id @default(autoincrement())
+  name        String
+  description String?
+  filePath    String
+  uploadedBy  User         @relation(fields: [userId], references: [id])
+  userId      Int
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  annotations Annotation[]
+  isPublic    Boolean      @default(false)
+}
+
+model Annotation {
+  id          Int           @id @default(autoincrement())
+  type        AnnotationType
+  x           Float         // x coordinate of the annotation
+  y           Float         // y coordinate of the annotation
+  label       String        // text label for the annotation
+  description String?       // optional longer description
+  image       Image         @relation(fields: [imageId], references: [id], onDelete: Cascade)
+  imageId     Int
+  createdBy   User         @relation(fields: [userId], references: [id])
+  userId      Int
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  // For arrow annotations
+  endX        Float?       // end x coordinate for arrows
+  endY        Float?       // end y coordinate for arrows
+  isHidden    Boolean      @default(false)
+}
+
+enum AnnotationType {
+  DOT
+  ARROW
+}
+
 model Token {
   id        Int       @id @default(autoincrement())
   user      User      @relation(fields: [userId], references: [id])
-  userId    Int       // Foreign key to User
+  userId    Int
   token     String    @unique
-  type      TokenType // Enum for token types
-  expiresAt DateTime  // Expiration date of the token
+  type      TokenType
+  expiresAt DateTime
   createdAt DateTime  @default(now())
   isActive  Boolean   @default(true)
 }

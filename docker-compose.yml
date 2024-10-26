@@ -2,39 +2,44 @@ version: '3.8'
 
 services:
   app:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
     ports:
       - "3000:3000"
     environment:
-      - DATABASE_URL=${DATABASE_URL}
-      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
-      - NEXTAUTH_URL=${NEXTAUTH_URL}
-      - REDIS_URL=${REDIS_URL}
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://user:password@db:5432/image_annotation_db
+      - NEXTAUTH_URL=http://localhost:3000
+      - NEXTAUTH_SECRET=your-nextauth-secret
+      - REDIS_URL=redis://redis:6379
+    volumes:
+      - ./public/uploads:/app/public/uploads
+      - ./src:/app/src
+      - ./.next:/app/.next
     depends_on:
       - db
       - redis
-    volumes:
-      - ./public/uploads:/app/public/uploads
-    networks:
-      - images-network
 
   db:
-    image: postgres:15
-    container_name: plant-wiki-postgres
+    image: postgres:15-alpine
     environment:
-      - POSTGRES_USER=${DB_USER}
-      - POSTGRES_PASSWORD=${DB_PASSWORD}
-      - POSTGRES_DB=${DB_NAME}
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=image_annotation_db
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    networks:
-      - images-network
+
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
 
 volumes:
   postgres_data:
+  redis_data:
   uploads:
-
-networks:
-  images-network:

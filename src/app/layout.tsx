@@ -1,22 +1,22 @@
-// File: src/components/Layout.tsx
-
 import React from 'react';
-import Header from './Header';
+import { useSession } from 'next-auth/react';
+import Navbar from './Navbar';
 import Footer from './Footer';
-import ErrorBoundary from './ErrorBoundary';
+import { Toaster } from '@/components/ui/toast';
 
-const Layout = ({ children }) => {
+interface LayoutProps {
+  children: React.ReactNode;
+}
+
+export default function Layout({ children }: LayoutProps) {
+  const { data: session, status } = useSession();
+
   return (
-    <div className="flex flex-col min-h-screen bg-gray-100">
-      <Header />
-      <ErrorBoundary>
-        <main className="flex-grow container mx-auto px-4 py-8">
-          {children}
-        </main>
-      </ErrorBoundary>
+    <div className="min-h-screen flex flex-col">
+      <Navbar />
+      <main className="flex-grow">{children}</main>
       <Footer />
+      <Toaster />
     </div>
   );
-};
-
-export default Layout;
+}

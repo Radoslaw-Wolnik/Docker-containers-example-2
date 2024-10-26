@@ -1,43 +1,30 @@
-# Use an official Node runtime as a parent image
+# Base image
 FROM node:18-alpine
 
-# Set the working directory in the container
+# Set working directory
 WORKDIR /app
 
-# Copy package.json and package-lock.json
+# Install dependencies
 COPY package*.json ./
-
-# Copy prisma directory (including schema.prisma)
-COPY prisma ./prisma
+COPY prisma ./prisma/
 
 # Install dependencies
 RUN npm ci
 
-# Generate Prisma client
+# Generate Prisma Client
 RUN npx prisma generate
 
-# Copy the rest of the application code
+# Copy application code
 COPY . .
 
-# Copy only the necessary directories and files
-# COPY src ./src
-# COPY middleware ./middleware
-
-
-# Build the Next.js app
+# Build application
 RUN npm run build
 
-# Expose the port the app runs on
+# Create upload directory
+RUN mkdir -p /app/public/uploads
+
+# Expose port
 EXPOSE 3000
 
-# Create a directory for logs
-RUN mkdir -p /app/logs
-
-# Create directories for logs and uploads
-RUN mkdir -p /app/logs \
-    && mkdir -p /app/public/uploads/users
-
-# Set permissions for the logs and uploads directories
-RUN chmod -R 755 /app/logs /app/public/uploads
-
+# Start application
 CMD ["npm", "start"]
